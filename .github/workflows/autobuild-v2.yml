@@ -95,7 +95,30 @@ jobs:
             exit 1
           fi
           
-          echo "✅ Task structure is valid"
+          # Validate Dockerfile exists and has content
+          if [ ! -s "./task/env/Dockerfile" ]; then
+            echo "❌ Dockerfile is empty or missing"
+            exit 1
+          fi
+          
+          # Validate verify.sh exists and has content
+          if [ ! -s "./task/verify/verify.sh" ]; then
+            echo "❌ verify.sh is empty or missing"
+            exit 1
+          fi
+          
+          # Validate prompt has content
+          if [ ! -s "./task/prompt" ]; then
+            echo "❌ prompt file is empty"
+            exit 1
+          fi
+          
+          # Check verify.sh has SUCCESS/FAILURE outputs
+          if ! grep -q "SUCCESS" ./task/verify/verify.sh || ! grep -q "FAILURE" ./task/verify/verify.sh; then
+            echo "⚠️ Warning: verify.sh should output 'SUCCESS' or 'FAILURE'"
+          fi
+          
+          echo "✅ Task structure and content validation passed"
       
       - name: Make scripts executable
         run: |
