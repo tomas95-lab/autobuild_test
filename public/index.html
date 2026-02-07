@@ -63,41 +63,32 @@
 
     <!-- Upload Section -->
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-      <h2 class="text-2xl font-bold text-gray-800 mb-4">🚀 Run Autobuild</h2>
+      <h2 class="text-2xl font-bold text-gray-800 mb-4">📦 Upload Task</h2>
       
-      <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
-        <div class="flex">
-          <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
-            </svg>
-          </div>
-          <div class="ml-3">
-            <p class="text-sm text-blue-700">
-              <strong>Paso previo:</strong> Primero creá un Release con tu task ZIP:
-              <a href="https://github.com/tomas95-lab/autobuild_test/releases/new" target="_blank" class="underline hover:text-blue-900">
-                Crear Release →
-              </a>
-            </p>
-            <p class="text-xs text-blue-600 mt-1">
-              Tag: task-NOMBRE, sube tu ZIP, marca como pre-release
-            </p>
-          </div>
-        </div>
-      </div>
-
       <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 mb-2">
-          Release Tag (ej: task-mytask-123)
+          Task ZIP File
         </label>
-        <input type="text" id="releaseTag" placeholder="task-mytask-123" 
-               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+        <div class="flex items-center space-x-4">
+          <input type="file" id="taskFile" accept=".zip" 
+                 class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 
+                        file:rounded-full file:border-0 file:text-sm file:font-semibold 
+                        file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
+        </div>
         <p class="mt-2 text-sm text-gray-500">
-          El tag del release que creaste con tu task ZIP
+          Upload a ZIP containing: <code>env/</code>, <code>verify/</code>, and <code>prompt</code>
         </p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Task Name
+          </label>
+          <input type="text" id="taskName" placeholder="my-awesome-task" 
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+        </div>
+        
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">
             Execution Mode
@@ -112,13 +103,13 @@
             <option value="auto_review">Auto Review (full)</option>
           </select>
         </div>
-        
-        <div class="flex items-end">
-          <label class="flex items-center space-x-2">
-            <input type="checkbox" id="keepArtifacts" class="rounded text-purple-600">
-            <span class="text-sm text-gray-700">Keep Docker artifacts</span>
-          </label>
-        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" id="keepArtifacts" class="rounded text-purple-600">
+          <span class="text-sm text-gray-700">Keep Docker artifacts (for debugging)</span>
+        </label>
       </div>
 
       <button id="runButton" 

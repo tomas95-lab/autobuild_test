@@ -2,7 +2,11 @@
 const CONFIG = {
   owner: 'tomas95-lab',
   repo: 'autobuild_test',
-  token: localStorage.getItem('github_token') || null
+  token: localStorage.getItem('github_token') || null,
+  // Vercel API endpoint (se configura después del deploy)
+  apiUrl: window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000/api'
+    : '/api'
 };
 
 // State
@@ -10,7 +14,8 @@ let currentWorkflowRun = null;
 let pollInterval = null;
 
 // DOM Elements
-const releaseTag = document.getElementById('releaseTag');
+const taskFile = document.getElementById('taskFile');
+const taskName = document.getElementById('taskName');
 const executionMode = document.getElementById('executionMode');
 const keepArtifacts = document.getElementById('keepArtifacts');
 const runButton = document.getElementById('runButton');
@@ -34,8 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add event listeners
   runButton.addEventListener('click', handleRun);
   
-  // Generate random task name suggestion
-  releaseTag.placeholder = `task-mytask-${Date.now()}`;
+  // Generate random task name
+  taskName.value = `task-${Date.now()}`;
 });
 
 // Token management
@@ -82,35 +87,92 @@ async function handleRun() {
     if (!CONFIG.token) return;
   }
   
-  const tag = releaseTag.value.trim();
+  const file = taskFile.files[0];
+  const name = taskName.value.trim();
   const mode = executionMode.value;
   
   // Validation
-  if (!tag) {
-    showStatus('Please enter the release tag', 'error');
+  if (!file) {
+    showStatus('❌ Please select a task ZIP file', 'error');
+    return;
+  }
+  
+  if (!name) {
+    showStatus('❌ Please enter a task name', 'error');
+    return;
+  }
+  
+  if (!file.name.endsWith('.zip')) {
+    showStatus('❌ Task file must be a ZIP archive', 'error');
     return;
   }
   
   // Disable button
   runButton.disabled = true;
-  runButton.textContent = '⏳ Triggering workflow...';
+  runButton.textContent = '⏳ Uploading...';
   
   try {
-    // Trigger autobuild workflow directly
-    showStatus('Triggering autobuild workflow...', 'info');
-    await triggerAutobuildWorkflow(tag, mode, keepArtifacts.checked);
+    // Step 1: Upload via Vercel backend
+    showStatus('📤 Step 1/3: Uploading task to GitHub...', 'info');
+    const releaseTag = await uploadViaBackend(file, name);
     
-    // Monitor execution
-    showStatus('Workflow triggered! Monitoring execution...', 'success');
+    // Step 2: Trigger workflow
+    showStatus('🚀 Step 2/3: Triggering autobuild workflow...', 'info');
+    await triggerAutobuildWorkflow(releaseTag, mode, keepArtifacts.checked);
+    
+    // Step 3: Monitor
+    showStatus('👀 Step 3/3: Monitoring execution...', 'success');
     showExecutionSection();
     startPolling();
     
   } catch (error) {
     console.error('Error:', error);
-    showStatus(`Error: ${error.message}`, 'error');
+    showStatus(`❌ Error: ${error.message}`, 'error');
     runButton.disabled = false;
     runButton.textContent = '🚀 Run Autobuild';
   }
+}
+
+// Upload via Vercel backend (avoids CORS)
+async function uploadViaBackend(file, taskName) {
+  // Convert file to base64
+  const base64 = await fileToBase64(file);
+  
+  const response = await fetch(`${CONFIG.apiUrl}/upload`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      file: base64,
+      taskName: taskName,
+      token: CONFIG.token,
+      owner: CONFIG.owner,
+      repo: CONFIG.repo
+    })
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Upload failed');
+  }
+  
+  const data = await response.json();
+  console.log('Upload successful:', data);
+  return data.releaseTag;
+}
+
+// Helper: convert file to base64
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 // Trigger autobuild workflow (simplified - no upload needed)
