@@ -138,6 +138,12 @@ async function uploadViaBackend(file, taskName) {
   // Convert file to base64
   const base64 = await fileToBase64(file);
   
+  console.log('Uploading to backend...', {
+    taskName,
+    fileSize: file.size,
+    base64Length: base64.length
+  });
+  
   const response = await fetch(`${CONFIG.apiUrl}/upload`, {
     method: 'POST',
     headers: {
@@ -152,9 +158,19 @@ async function uploadViaBackend(file, taskName) {
     })
   });
   
+  console.log('Backend response status:', response.status);
+  
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Upload failed');
+    const errorText = await response.text();
+    console.error('Backend error:', errorText);
+    
+    // Try to parse as JSON for better error message
+    try {
+      const errorJson = JSON.parse(errorText);
+      throw new Error(errorJson.error || errorJson.message || 'Upload failed');
+    } catch {
+      throw new Error(`Upload failed: ${response.status} - ${errorText.substring(0, 200)}`);
+    }
   }
   
   const data = await response.json();
