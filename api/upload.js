@@ -53,21 +53,27 @@ export default async function handler(req, res) {
     const release = await releaseResponse.json();
     
     // 2. Upload ZIP as asset
-    const uploadUrl = release.upload_url.replace('{?name,label}', `?name=${taskName}.zip`);
+    const uploadUrl = release.upload_url.replace('{?name,label}', `?name=${encodeURIComponent(taskName)}.zip`);
     const fileBuffer = Buffer.from(file, 'base64');
+    
+    console.log('Upload URL:', uploadUrl);
+    console.log('File size:', fileBuffer.length);
     
     const uploadResponse = await fetch(uploadUrl, {
       method: 'POST',
       headers: {
         'Authorization': `token ${token}`,
         'Content-Type': 'application/zip',
-        'Content-Length': fileBuffer.length
+        'Content-Length': String(fileBuffer.length),
+        'Accept': 'application/vnd.github.v3+json'
       },
       body: fileBuffer
     });
     
     if (!uploadResponse.ok) {
-      throw new Error(`Failed to upload asset: ${uploadResponse.statusText}`);
+      const errorText = await uploadResponse.text();
+      console.error('Upload failed:', errorText);
+      throw new Error(`Failed to upload asset: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorText}`);
     }
     
     const asset = await uploadResponse.json();
