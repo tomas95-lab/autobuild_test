@@ -566,25 +566,6 @@ async function loadResults(run) {
     </div>
   `;
 }
-              </div>
-              <button onclick="downloadArtifact(${artifact.id}, '${artifact.name}')" 
-                 class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
-                📥 Download
-              </button>
-            </div>
-          `).join('')}
-    </div>
-    
-    <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-      <h4 class="font-bold text-blue-800 mb-2">Next Steps</h4>
-      <ul class="text-sm text-blue-700 space-y-1">
-        <li>• Download the artifacts to review logs</li>
-        <li>• Check the workflow page for detailed execution logs</li>
-        <li>• Artifacts are kept for 30 days</li>
-      </ul>
-    </div>
-  `;
-}
 
 // Helper: Format bytes
 function formatBytes(bytes) {
