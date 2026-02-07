@@ -1,0 +1,202 @@
+name: Autobuild Execution v2
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Autobuild mode'
+        required: true
+        type: choice
+        options:
+          - verify
+          - feedback
+          - audit
+          - solution
+          - solution_verify
+          - auto_review
+      release_tag:
+        description: 'Release tag containing task ZIP (e.g., task-mytask-1234567890)'
+        required: true
+        type: string
+      keep_artifacts:
+        description: 'Keep Docker artifacts'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  run-autobuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Docker
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Download task from release
+        run: |
+          echo "📥 Downloading task from release: ${{ github.event.inputs.release_tag }}"
+          
+          # Get release by tag
+          RELEASE_INFO=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.event.inputs.release_tag }}")
+          
+          # Extract download URL for .zip asset
+          DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name | endswith(".zip")) | .browser_download_url' | head -1)
+          
+          if [ -z "$DOWNLOAD_URL" ]; then
+            echo "❌ No ZIP asset found in release"
+            exit 1
+          fi
+          
+          echo "📦 Download URL: $DOWNLOAD_URL"
+          
+          # Download and extract
+          mkdir -p ./task
+          curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "$DOWNLOAD_URL" -o task.zip
+          unzip -q task.zip -d ./task
+          
+          echo "✅ Task downloaded and extracted"
+          ls -la ./task
+      
+      - name: Validate task structure
+        run: |
+          echo "📋 Validating task structure..."
+          
+          # Find the actual task directory (might be nested)
+          TASK_ROOT=$(find ./task -name "env" -type d -exec dirname {} \; | head -1)
+          
+          if [ -z "$TASK_ROOT" ]; then
+            echo "❌ Could not find env/ directory in uploaded task"
+            exit 1
+          fi
+          
+          echo "Task root found at: $TASK_ROOT"
+          
+          # Move everything to ./task if nested
+          if [ "$TASK_ROOT" != "./task" ]; then
+            mv "$TASK_ROOT"/* ./task/
+          fi
+          
+          # Validate structure
+          if [ ! -d "./task/env" ] || [ ! -d "./task/verify" ] || [ ! -f "./task/prompt" ]; then
+            echo "❌ Invalid task structure"
+            echo "Required: env/, verify/, prompt"
+            echo "Found:"
+            ls -la ./task
+            exit 1
+          fi
+          
+          echo "✅ Task structure is valid"
+      
+      - name: Make scripts executable
+        run: |
+          chmod +x ./autobuild/scripts/autobuild.sh
+          chmod +x ./scripts/process-task.sh
+      
+      - name: Run autobuild
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          echo "🚀 Starting autobuild execution..."
+          echo "Mode: ${{ github.event.inputs.mode }}"
+          
+          TASK_PATH=$(realpath ./task)
+          OUTPUT_PATH=$(realpath ./output)
+          mkdir -p "$OUTPUT_PATH"
+          
+          # Build command
+          CMD="bash ./autobuild/scripts/autobuild.sh ${{ github.event.inputs.mode }}"
+          CMD="$CMD --task $TASK_PATH"
+          CMD="$CMD --output-dir $OUTPUT_PATH"
+          
+          if [ "${{ github.event.inputs.keep_artifacts }}" = "true" ]; then
+            CMD="$CMD --keep-artifacts"
+          fi
+          
+          echo "Running: $CMD"
+          
+          # Execute
+          $CMD || EXIT_CODE=$?
+          
+          echo "Exit code: ${EXIT_CODE:-0}"
+          
+          # Always generate summary
+          cat > "$OUTPUT_PATH/EXECUTION_SUMMARY.md" << EOF
+          # Autobuild Execution Report
+          
+          **Workflow Run:** #${{ github.run_number }}
+          **Run ID:** ${{ github.run_id }}
+          **Mode:** ${{ github.event.inputs.mode }}
+          **Task:** ${{ github.event.inputs.release_tag }}
+          **Status:** $([ "${EXIT_CODE:-0}" -eq 0 ] && echo "✅ SUCCESS" || echo "❌ FAILED")
+          **Exit Code:** ${EXIT_CODE:-0}
+          **Triggered by:** @${{ github.actor }}
+          **Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ## Execution Details
+          
+          \`\`\`
+          Repository: ${{ github.repository }}
+          Commit: ${{ github.sha }}
+          Ref: ${{ github.ref }}
+          \`\`\`
+          
+          ## Generated Artifacts
+          
+          Check the artifacts section below for detailed logs and results.
+          
+          ## View Logs
+          
+          - [Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - [Release](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.inputs.release_tag }})
+          
+          EOF
+          
+          exit ${EXIT_CODE:-0}
+      
+      - name: List generated files
+        if: always()
+        run: |
+          echo "📊 Generated files:"
+          find ./output -type f -ls || echo "No files generated"
+      
+      - name: Upload execution logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autobuild-logs-${{ github.run_number }}-${{ github.event.inputs.mode }}
+          path: ./output/
+          retention-days: 30
+          if-no-files-found: warn
+      
+      - name: Post summary to workflow
+        if: always()
+        run: |
+          if [ -f ./output/EXECUTION_SUMMARY.md ]; then
+            cat ./output/EXECUTION_SUMMARY.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No summary generated" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Cleanup Docker resources
+        if: always()
+        run: |
+          echo "🧹 Cleaning up Docker resources..."
+          docker system prune -af --volumes || true
+          
+      - name: Delete release after execution
+        if: always()
+        run: |
+          echo "🗑️ Deleting temporary release..."
+          curl -X DELETE \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.event.inputs.release_tag }}" || true

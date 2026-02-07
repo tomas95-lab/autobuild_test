@@ -1,0 +1,67 @@
+# Solution Verification Analysis Prompt (for Gemini CLI)
+
+## Context
+
+A **solution** (golden response) has been provided and executed in this environment. The verification tests have also been run.
+
+Available reference materials:
+- `_context/prompt.txt` = Original task request
+- `_context/solution/` = The solution that was applied
+- `_context/verify/` = Verification scripts and tests
+- Working directory = Live environment after solution was applied
+
+**Important**: The `_context/` folder contains READ-ONLY copies of task files for reference only.
+- Execution occurred in the working directory (project root), NOT in `_context/`
+- Solution was applied to the working directory root
+- Verification ran from the working directory (or `verify/` subfolder)
+- Use `_context/` only to understand the original task design and compare against live state
+
+## Your Task
+
+**Analyze the results** of running the solution and verification. Review:
+1. The solution implementation and how it was applied
+2. The verification results and any failures
+3. The alignment between prompt, solution, and verification
+
+## Output Format
+
+Provide your analysis in EXACTLY this format:
+
+<VERIFICATION_PASSED>Yes/No</VERIFICATION_PASSED>
+<VERIFICATION_SUMMARY>[2–3 sentences summarizing what was tested and the outcome.]</VERIFICATION_SUMMARY>
+
+<SOLUTION_IMPLEMENTED_CORRECTLY>Yes/No/Partial</SOLUTION_IMPLEMENTED_CORRECTLY>
+<IMPLEMENTATION_ANALYSIS>[2–3 sentences. Did solution_script.sh correctly apply the solution? Were there any deployment issues?]</IMPLEMENTATION_ANALYSIS>
+
+<ROOT_CAUSE_OF_FAILURES>[If verification failed, explain why in 2–3 sentences. If passed, write "N/A - Verification Passed"]</ROOT_CAUSE_OF_FAILURES>
+
+<PROMPT_SOLUTION_ALIGNMENT>Excellent/Good/Fair/Poor</PROMPT_SOLUTION_ALIGNMENT>
+<ALIGNMENT_REASON>[2–3 sentences. How well does the solution match what was requested in prompt.txt? Any missing features or deviations?]</ALIGNMENT_REASON>
+
+<VERIFY_SOLUTION_ALIGNMENT>Excellent/Good/Fair/Poor</VERIFY_SOLUTION_ALIGNMENT>
+<VERIFY_ALIGNMENT_REASON>[2–3 sentences. Are the verification tests appropriate for the solution? Do they test the right things?]</VERIFY_ALIGNMENT_REASON>
+
+<SOLUTION_AS_GOLDEN_RESPONSE>Acceptable/Needs-Revision/Unacceptable</SOLUTION_AS_GOLDEN_RESPONSE>
+<GOLDEN_RESPONSE_REASON>[2–3 sentences. Should this solution be accepted as the "golden response" for this task? Why or why not?]</GOLDEN_RESPONSE_REASON>
+
+<REQUIRED_FIXES>[List specific fixes needed if solution is not acceptable, or "None" if acceptable.]</REQUIRED_FIXES>
+
+<TASK_QUALITY_ASSESSMENT>Good/Acceptable/Poor</TASK_QUALITY_ASSESSMENT>
+<TASK_QUALITY_REASON>[2–3 sentences. Overall, is this a well-designed task? Are the prompt and verification clear and appropriate?]</TASK_QUALITY_REASON>
+
+## Instructions
+
+- Review actual files in the working directory to see what was implemented
+- Check logs or outputs if available to understand what happened
+- Be objective and specific in your analysis
+- Focus on whether this solution serves as a valid "golden response"
+- Consider that the solution should be exemplary, not just "barely passing"
+
+## Evaluation Focus
+
+1. **Did it work?** - Verification pass/fail status
+2. **Was it correct?** - Implementation quality and correctness
+3. **Does it match?** - Alignment with prompt requirements
+4. **Is it golden?** - Suitable as reference implementation
+5. **Is the task good?** - Quality of prompt and verification design
+

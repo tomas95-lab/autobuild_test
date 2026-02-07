@@ -1,0 +1,24 @@
+{
+  "name": "autobuild-web-free",
+  "version": "1.0.0",
+  "description": "Free cloud execution for Autobuild using GitHub Actions",
+  "main": "public/index.html",
+  "scripts": {
+    "dev": "npx http-server public -p 8080",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "autobuild",
+    "github-actions",
+    "docker",
+    "gemini",
+    "ci-cd"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR-USERNAME/autobuild-web.git"
+  },
+  "homepage": "https://YOUR-USERNAME.github.io/autobuild-web/"
+}

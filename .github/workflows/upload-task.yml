@@ -1,0 +1,29 @@
+name: Upload Task
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_name:
+        description: 'Task name (unique identifier)'
+        required: true
+        type: string
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Create placeholder
+        run: |
+          echo "This artifact is a placeholder for task: ${{ github.event.inputs.task_name }}" > placeholder.txt
+          echo "Upload your task ZIP via the web interface"
+      
+      - name: Upload placeholder artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.task_name }}
+          path: placeholder.txt
+          retention-days: 1

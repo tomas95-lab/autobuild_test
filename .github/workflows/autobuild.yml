@@ -1,0 +1,152 @@
+name: Autobuild Execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Autobuild mode'
+        required: true
+        type: choice
+        options:
+          - feedback
+          - verify
+          - audit
+          - solution
+          - solution_audit
+          - solution_verify
+          - auto_review
+      task_artifact:
+        description: 'Task artifact name (uploaded via web UI)'
+        required: true
+        type: string
+      keep_artifacts:
+        description: 'Keep Docker artifacts after run'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  run-autobuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Download task artifact
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          name: ${{ github.event.inputs.task_artifact }}
+          path: ./task-input
+          workflow_conclusion: ''
+          if_no_artifact_found: fail
+      
+      - name: Extract task
+        run: |
+          mkdir -p ./task
+          if [ -f ./task-input/*.zip ]; then
+            unzip -q ./task-input/*.zip -d ./task
+          else
+            cp -r ./task-input/* ./task/
+          fi
+          ls -la ./task
+      
+      - name: Validate task structure
+        run: |
+          echo "Validating task structure..."
+          if [ ! -d "./task/env" ]; then
+            echo "❌ Error: env/ directory not found"
+            exit 1
+          fi
+          if [ ! -d "./task/verify" ]; then
+            echo "❌ Error: verify/ directory not found"
+            exit 1
+          fi
+          if [ ! -f "./task/prompt" ]; then
+            echo "❌ Error: prompt file not found"
+            exit 1
+          fi
+          echo "✅ Task structure valid"
+      
+      - name: Copy autobuild scripts
+        run: |
+          # Si existe autobuild en el repo, usarlo
+          if [ -d "./autobuild/scripts" ]; then
+            cp -r ./autobuild/scripts ./scripts
+            cp -r ./autobuild/prompts ./prompts
+          else
+            echo "❌ Autobuild scripts not found in repo"
+            exit 1
+          fi
+      
+      - name: Run autobuild
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          TASK_PATH=$(realpath ./task)
+          OUTPUT_PATH=$(realpath ./output)
+          mkdir -p "$OUTPUT_PATH"
+          
+          # Build args
+          ARGS="--task $TASK_PATH --output-dir $OUTPUT_PATH"
+          
+          if [ "${{ github.event.inputs.keep_artifacts }}" = "true" ]; then
+            ARGS="$ARGS --keep-artifacts"
+          fi
+          
+          # Run autobuild
+          bash ./scripts/autobuild.sh ${{ github.event.inputs.mode }} $ARGS
+      
+      - name: Prepare logs for upload
+        if: always()
+        run: |
+          # Create summary
+          cat > ./output/SUMMARY.md << 'EOF'
+          # Autobuild Execution Summary
+          
+          **Workflow Run:** ${{ github.run_number }}
+          **Mode:** ${{ github.event.inputs.mode }}
+          **Task:** ${{ github.event.inputs.task_artifact }}
+          **Triggered by:** ${{ github.actor }}
+          **Date:** $(date -u)
+          
+          ## Results
+          
+          Check the artifacts below for detailed logs.
+          
+          EOF
+          
+          # List all logs
+          echo "## Generated Files" >> ./output/SUMMARY.md
+          echo '```' >> ./output/SUMMARY.md
+          find ./output -type f -name "*.log" -o -name "*.txt" >> ./output/SUMMARY.md
+          echo '```' >> ./output/SUMMARY.md
+      
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autobuild-logs-${{ github.run_number }}
+          path: ./output/
+          retention-days: 30
+      
+      - name: Upload summary
+        if: always()
+        run: |
+          if [ -f ./output/SUMMARY.md ]; then
+            cat ./output/SUMMARY.md >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          docker system prune -af --volumes || true

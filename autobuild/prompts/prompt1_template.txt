@@ -1,0 +1,17 @@
+**Task:** 
+
+1.  Read the user request from the `prompt` file and execute the specified tasks. 
+2.  Use the `verify.sh` script to test your solution. 
+
+**Analysis of `verify.sh`:** 
+
+Upon completion of the task, provide a concise analysis of the `verify.sh` script's effectiveness. Your summary should address the following: 
+
+*   **Sufficiency:** Does the script contain adequate tests to confirm a successful task completion? 
+*   **Over-testing:** Does the script make rigid assumptions about the solution's implementation that might incorrectly fail a valid approach? 
+*   **Scope:** Does the script test for requirements not explicitly stated in `prompt`? 
+
+---
+Below is the content of prompt.txt for this task. Treat it as the user request:
+---
+

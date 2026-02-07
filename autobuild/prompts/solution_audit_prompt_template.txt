@@ -1,0 +1,67 @@
+# Solution Quality Audit Prompt (for Gemini CLI)
+
+## Context
+
+You are auditing the quality of a **solution** (golden response) provided by a task worker. The task structure includes:
+
+- `_context/prompt.txt` = The original task request
+- `_context/verify/` = Verification scripts and tests (read-only reference)
+- `_context/Dockerfile` = Environment specification (read-only reference)
+- `_context/solution/` = The solution provided by the worker (what you're auditing)
+  - `solution_script.sh` = Script that applies the solution
+  - `solution.patch` or other solution files = The actual implementation
+
+**Important**: The `_context/` folder contains READ-ONLY copies of task files for reference only.
+- When executed, the solution would be applied to the working directory (project root), NOT to `_context/`
+- Verification would run from the working directory (or `verify/` subfolder)
+- The files in `_context/` are for analysis purposes only—they represent what WILL be executed, not WHERE they execute
+
+## Your Task
+
+**Analyze the provided solution WITHOUT running it.** Evaluate its quality as a "golden response" that should:
+1. Correctly solve the task as specified in `prompt.txt`
+2. Pass all verification tests in `verify/`
+3. Follow best practices and be maintainable
+4. Serve as a reference implementation for others
+
+## Output Format
+
+Provide your analysis in EXACTLY this format:
+
+<SOLUTION_COMPLETE>Yes/No</SOLUTION_COMPLETE>
+<SOLUTION_COMPLETE_REASON>[1–2 sentences. Does the solution address all requirements from prompt.txt? Are there missing features or partial implementations?]</SOLUTION_COMPLETE_REASON>
+
+<SOLUTION_CORRECT>Yes/No/Uncertain</SOLUTION_CORRECT>
+<SOLUTION_CORRECT_REASON>[1–2 sentences. Is the implementation logically correct? Would it work as intended? Note any bugs, edge cases, or issues.]</SOLUTION_CORRECT_REASON>
+
+<SOLUTION_VERIFIABLE>Yes/No/Uncertain</SOLUTION_VERIFIABLE>
+<SOLUTION_VERIFIABLE_REASON>[1–2 sentences. Would this solution pass the verification tests in _context/verify/? Explain why or identify potential failures.]</SOLUTION_VERIFIABLE_REASON>
+
+<SOLUTION_QUALITY>Excellent/Good/Fair/Poor</SOLUTION_QUALITY>
+<SOLUTION_QUALITY_REASON>[2–3 sentences. Evaluate code quality, best practices, error handling, documentation, maintainability, and suitability as a reference implementation.]</SOLUTION_QUALITY_REASON>
+
+<SOLUTION_SCRIPT_VALID>Yes/No</SOLUTION_SCRIPT_VALID>
+<SOLUTION_SCRIPT_REASON>[1–2 sentences. Is solution_script.sh correct? Does it properly apply the solution? Any issues with the deployment script?]</SOLUTION_SCRIPT_REASON>
+
+<CRITICAL_ISSUES>[List any critical issues that MUST be fixed, or "None" if the solution is acceptable as-is.]</CRITICAL_ISSUES>
+
+<RECOMMENDATIONS>[List 2-3 suggestions for improvement, or "None" if the solution is excellent.]</RECOMMENDATIONS>
+
+## Constraints
+
+- **DO NOT** modify any files
+- **DO NOT** run the solution or verification
+- **DO NOT** implement fixes or alternatives
+- **Audit only** - provide objective analysis
+- Focus on whether this solution would serve as a good "golden response"
+- Consider the solution in context of the Dockerfile environment
+- Treat Dockerfile-defined paths and environment as valid assumptions
+
+## Evaluation Criteria
+
+1. **Completeness**: Does it implement everything requested?
+2. **Correctness**: Is the logic sound and bug-free?
+3. **Verifiability**: Will it pass the provided tests?
+4. **Quality**: Is it well-written and maintainable?
+5. **Reference Value**: Is it a good example for others to follow?
+

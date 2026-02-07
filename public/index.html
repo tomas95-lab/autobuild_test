@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autobuild Web - Free Cloud Execution</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .log-viewer {
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      max-height: 400px;
+    }
+    .spinner {
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- Header -->
+  <header class="gradient-bg text-white shadow-lg">
+    <div class="container mx-auto px-4 py-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold">Autobuild Web</h1>
+          <p class="text-purple-100 mt-1">Run Autobuild in the cloud - 100% Free</p>
+        </div>
+        <div class="flex items-center space-x-4">
+          <span class="bg-white/20 px-3 py-1 rounded-full text-sm">v1.0.0</span>
+          <a href="https://github.com/YOUR-USERNAME/autobuild-web" target="_blank" 
+             class="hover:text-purple-200 transition">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container mx-auto px-4 py-8 max-w-6xl">
+    
+    <!-- Status Banner -->
+    <div id="statusBanner" class="hidden mb-6 p-4 rounded-lg"></div>
+
+    <!-- Upload Section -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800 mb-4">📦 Upload Task</h2>
+      
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Task ZIP File
+        </label>
+        <div class="flex items-center space-x-4">
+          <input type="file" id="taskFile" accept=".zip" 
+                 class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 
+                        file:rounded-full file:border-0 file:text-sm file:font-semibold 
+                        file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
+        </div>
+        <p class="mt-2 text-sm text-gray-500">
+          Upload a ZIP containing: <code>env/</code>, <code>verify/</code>, and <code>prompt</code>
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Task Name
+          </label>
+          <input type="text" id="taskName" placeholder="my-awesome-task" 
+                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Execution Mode
+          </label>
+          <select id="executionMode" 
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+            <option value="verify">Verify (AI solves task)</option>
+            <option value="feedback">Feedback (with analysis)</option>
+            <option value="audit">Audit (quality check)</option>
+            <option value="solution">Solution (run pre-made)</option>
+            <option value="solution_verify">Solution Verify</option>
+            <option value="auto_review">Auto Review (full)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" id="keepArtifacts" class="rounded text-purple-600">
+          <span class="text-sm text-gray-700">Keep Docker artifacts (for debugging)</span>
+        </label>
+      </div>
+
+      <button id="runButton" 
+              class="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold py-3 px-6 rounded-lg 
+                     hover:from-purple-700 hover:to-purple-800 transition duration-200 shadow-lg">
+        🚀 Run Autobuild
+      </button>
+    </div>
+
+    <!-- Configuration Section -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800 mb-4">⚙️ Configuration</h2>
+      
+      <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm text-yellow-700">
+              <strong>Setup Required:</strong> Add your <code>GEMINI_API_KEY</code> to 
+              <a href="#" id="secretsLink" class="underline hover:text-yellow-900">GitHub Secrets</a>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-3 text-sm text-gray-600">
+        <div class="flex items-start space-x-2">
+          <span class="text-green-500 font-bold">✓</span>
+          <span>GitHub repo configured</span>
+        </div>
+        <div class="flex items-start space-x-2">
+          <span id="apiKeyStatus" class="text-red-500 font-bold">✗</span>
+          <span>Gemini API Key (check Settings → Secrets)</span>
+        </div>
+        <div class="flex items-start space-x-2">
+          <span class="text-green-500 font-bold">✓</span>
+          <span>GitHub Actions enabled (2000 min/month free)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Execution Status -->
+    <div id="executionSection" class="hidden bg-white rounded-lg shadow-md p-6 mb-6">
+      <h2 class="text-2xl font-bold text-gray-800 mb-4">🔄 Execution Status</h2>
+      
+      <div id="executionStatus" class="space-y-4">
+        <!-- Status will be populated by JS -->
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsSection" class="hidden bg-white rounded-lg shadow-md p-6">
+      <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 Results</h2>
+      
+      <div id="resultsContent">
+        <!-- Results will be populated by JS -->
+      </div>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="text-3xl mb-2">⚡</div>
+        <h3 class="text-lg font-bold text-gray-800 mb-2">Fast Execution</h3>
+        <p class="text-gray-600 text-sm">Powered by GitHub Actions runners with Docker support</p>
+      </div>
+      
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="text-3xl mb-2">💰</div>
+        <h3 class="text-lg font-bold text-gray-800 mb-2">100% Free</h3>
+        <p class="text-gray-600 text-sm">2000 minutes/month included with GitHub Actions</p>
+      </div>
+      
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="text-3xl mb-2">🔒</div>
+        <h3 class="text-lg font-bold text-gray-800 mb-2">Secure</h3>
+        <p class="text-gray-600 text-sm">API keys stored in GitHub Secrets, never exposed</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-800 text-white mt-12 py-6">
+    <div class="container mx-auto px-4 text-center">
+      <p>Made with ❤️ for the Autobuild community</p>
+      <p class="text-sm text-gray-400 mt-2">
+        <a href="https://github.com/YOUR-USERNAME/autobuild" class="hover:text-purple-300">Documentation</a> · 
+        <a href="https://github.com/YOUR-USERNAME/autobuild-web/issues" class="hover:text-purple-300">Report Issue</a> · 
+        <a href="https://github.com/YOUR-USERNAME/autobuild-web" class="hover:text-purple-300">GitHub</a>
+      </p>
+    </div>
+  </footer>
+
+  <script src="app-v2.js"></script>
+</body>
+</html>

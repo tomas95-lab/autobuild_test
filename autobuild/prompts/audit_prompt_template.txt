@@ -1,0 +1,51 @@
+# Task Quality Audit Prompt (for Gemini CLI)
+
+Context (read-only):
+- _context/prompt.txt   = task description
+- _context/verify/      = verifier (entire folder with tests)
+- _context/Dockerfile   = environment contract (initial state)
+- _context/solution/    = golden response (if provided for review)
+
+Working environment:
+- You are executing inside the environment created by the Dockerfile.
+- All files/subfolders in the current working directory (except `_context/`) are the live environment.
+- `_context/` is reference-only and read-only.
+
+**Important**: The `_context/` folder contains READ-ONLY copies of task files for reference only.
+- When tasks execute, files are applied to the working directory (project root), NOT to `_context/`
+- Verification runs from the working directory (or `verify/` subfolder), NOT from `_context/verify/`
+- Use `_context/` only to understand the task design—it does NOT represent execution paths
+
+Task:
+Analyze only. Evaluate the overall quality of this task including:
+1. Whether the prompt is clear and complete
+2. Whether the verifier is valid and would accept correct solutions
+3. Whether the task is suitable for AI agents to complete
+Do not implement or propose fixes.
+
+Output in EXACTLY this format:
+<PROMPT_CLEAR>Yes/No</PROMPT_CLEAR>
+<PROMPT_REASON>[1–2 sentences on whether the task description is clear, complete, and unambiguous. Note any missing specifications.]</PROMPT_REASON>
+
+<VERIFY_VALID>Yes/No</VERIFY_VALID>
+<VERIFY_REASON>[1–2 sentences. Explicitly address: behavior vs implementation, over-constraint vs prompt/Dockerfile invariants, environment/path assumptions, functional coverage, hardcoded/irrelevant data, and prompt–verify alignment.]</VERIFY_REASON>
+
+<OTHER_VALID_SOLUTIONS_OK>Yes/No</OTHER_VALID_SOLUTIONS_OK>
+<OTHER_SOLUTIONS_REASON>[1–2 sentences on whether the verifier tests behavior (good) or implementation details (bad), and if it would pass other valid solutions.]</OTHER_SOLUTIONS_REASON>
+
+<TASK_SOLVABLE>Yes/No/Uncertain</TASK_SOLVABLE>
+<SOLVABLE_REASON>[1–2 sentences on whether an AI agent could reasonably complete this task given the prompt, environment, and verifier.]</SOLVABLE_REASON>
+
+<SOLUTION_PROVIDED>Yes/No</SOLUTION_PROVIDED>
+<SOLUTION_ASSESSMENT>[If solution exists: 1–2 sentences on whether it appears complete and correct. If not: "N/A"]</SOLUTION_ASSESSMENT>
+
+<OVERALL_TASK_QUALITY>Excellent/Good/Fair/Poor</OVERALL_TASK_QUALITY>
+<OVERALL_REASON>[2 sentences summarizing the task quality and any major issues.]</OVERALL_REASON>
+
+Constraints:
+- Treat Dockerfile-defined paths, names, and platform as environment invariants (valid hardcoding).
+- Do NOT invent requirements beyond prompt.txt or implied by the Dockerfile.
+- Do NOT suggest modifying or implementing anything; audit only.
+- Do NOT modify any files in _context/.
+- Keep each reason to 1–2 sentences.
+- Focus on task quality from a worker's perspective: "Could I complete this task successfully?"
