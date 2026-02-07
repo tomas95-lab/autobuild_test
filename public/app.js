@@ -400,22 +400,6 @@ function renderWorkflowStatus(run) {
       </div>
     </div>
   `;
-      </div>
-      <a href="${run.html_url}" target="_blank" 
-         class="px-4 py-2 bg-${statusColor}-600 text-white rounded-lg hover:bg-${statusColor}-700 transition">
-        View on GitHub
-      </a>
-    </div>
-    
-    ${run.status === 'in_progress' ? `
-      <div class="flex justify-center py-4">
-        <div class="spinner"></div>
-      </div>
-      <p class="text-center text-gray-600">
-        Execution in progress... This may take several minutes.
-      </p>
-    ` : ''}
-  `;
 }
 
 // Load results
@@ -608,27 +592,6 @@ async function downloadArtifact(artifactId, name) {
     
     showStatus('Artifact downloaded successfully!', 'success');
   } catch (error) {
-    showStatus(`Download failed: ${error.message}`, 'error');
-      }
-    );
-    
-    if (!response.ok) {
-      throw new Error(`Download failed: ${response.statusText}`);
-    }
-    
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${name}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-    
-    showStatus('Artifact downloaded successfully!', 'success');
-  } catch (error) {
-    console.error('Download error:', error);
     showStatus(`Download failed: ${error.message}`, 'error');
   }
 }
