@@ -375,21 +375,21 @@ async function loadResults(run) {
   resultsContent.innerHTML = `
     <div class="space-y-4">
       <h3 class="text-lg font-bold text-gray-800">Generated Artifacts</h3>
-      ${artifacts.map(artifact => `
-        <div class="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-          <div>
-            <div class="font-medium">${artifact.name}</div>
-            <div class="text-sm text-gray-500">
-              ${(artifact.size_in_bytes / 1024 / 1024).toFixed(2)} MB - 
-              Expires: ${new Date(artifact.expires_at).toLocaleDateString()}
+          ${artifacts.map(artifact => `
+            <div class="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+              <div>
+                <div class="font-medium">${artifact.name}</div>
+                <div class="text-sm text-gray-500">
+                  ${(artifact.size_in_bytes / 1024 / 1024).toFixed(2)} MB - 
+                  Expires: ${new Date(artifact.expires_at).toLocaleDateString()}
+                </div>
+              </div>
+              <button onclick="downloadArtifact(${artifact.id}, '${artifact.name}')" 
+                 class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                📥 Download
+              </button>
             </div>
-          </div>
-          <a href="${artifact.archive_download_url}" 
-             class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
-            📥 Download
-          </a>
-        </div>
-      `).join('')}
+          `).join('')}
     </div>
     
     <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -410,4 +410,40 @@ function formatBytes(bytes) {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Download artifact with proper authentication
+async function downloadArtifact(artifactId, name) {
+  try {
+    showStatus('📥 Downloading artifact...', 'info');
+    
+    const response = await fetch(
+      `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/actions/artifacts/${artifactId}/zip`,
+      {
+        headers: {
+          'Authorization': `token ${CONFIG.token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.statusText}`);
+    }
+    
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    showStatus('✅ Artifact downloaded successfully!', 'success');
+  } catch (error) {
+    console.error('Download error:', error);
+    showStatus(`❌ Download failed: ${error.message}`, 'error');
+  }
 }
