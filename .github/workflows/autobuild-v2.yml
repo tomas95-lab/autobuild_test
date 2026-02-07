@@ -146,45 +146,93 @@ jobs:
           fi
           
           echo "Running: $CMD"
+          echo "================================================"
           
-          # Execute
-          $CMD || EXIT_CODE=$?
+          # Execute and capture exit code
+          set +e
+          START_TIME=$(date +%s)
+          $CMD
+          EXIT_CODE=$?
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          set -e
           
-          echo "Exit code: ${EXIT_CODE:-0}"
+          echo "================================================"
+          echo "Exit code: ${EXIT_CODE}"
+          echo "Duration: ${DURATION}s"
           
-          # Always generate summary
+          # Generate detailed summary
           cat > "$OUTPUT_PATH/EXECUTION_SUMMARY.md" << EOF
-          # Autobuild Execution Report
+          # 🔍 Autobuild Execution Report - Detailed
           
-          **Workflow Run:** #${{ github.run_number }}
-          **Run ID:** ${{ github.run_id }}
-          **Mode:** ${{ github.event.inputs.mode }}
-          **Task:** ${{ github.event.inputs.release_tag }}
-          **Status:** $([ "${EXIT_CODE:-0}" -eq 0 ] && echo "✅ SUCCESS" || echo "❌ FAILED")
-          **Exit Code:** ${EXIT_CODE:-0}
-          **Triggered by:** @${{ github.actor }}
-          **Timestamp:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          ## 📊 Overview
           
-          ## Execution Details
+          | Field | Value |
+          |-------|-------|
+          | **Workflow Run** | #${{ github.run_number }} |
+          | **Run ID** | ${{ github.run_id }} |
+          | **Mode** | \`${{ github.event.inputs.mode }}\` |
+          | **Task Release** | \`${{ github.event.inputs.release_tag }}\` |
+          | **Status** | $([ "${EXIT_CODE}" -eq 0 ] && echo "✅ SUCCESS" || echo "❌ FAILED") |
+          | **Exit Code** | ${EXIT_CODE} |
+          | **Duration** | ${DURATION}s ($(printf "%d:%02d" $((DURATION/60)) $((DURATION%60)))) |
+          | **Triggered by** | @${{ github.actor }} |
+          | **Timestamp** | $(date -u +"%Y-%m-%d %H:%M:%S UTC") |
+          
+          ## 📁 Generated Files
+          
+          \`\`\`
+          $(find "$OUTPUT_PATH" -type f -name "*.log" -o -name "*.txt" -o -name "*.json" 2>/dev/null | wc -l) files generated
+          \`\`\`
+          
+          ### Logs by Type:
+          
+          $(if [ -d "$OUTPUT_PATH" ]; then
+            echo "- Docker Build: $(find "$OUTPUT_PATH" -name "docker_build.log" | wc -l) file(s)"
+            echo "- Gemini Execution: $(find "$OUTPUT_PATH" -name "gemini*.log" | wc -l) file(s)"
+            echo "- Verification: $(find "$OUTPUT_PATH" -name "verification*.log" | wc -l) file(s)"
+            echo "- Telemetry: $(find "$OUTPUT_PATH" -name "telemetry.log" | wc -l) file(s)"
+          else
+            echo "No output directory generated"
+          fi)
+          
+          ## 🔗 Links
+          
+          - [View Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - [Release Used](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.inputs.release_tag }})
+          - [Download Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts)
+          
+          ## 📝 Execution Details
           
           \`\`\`
           Repository: ${{ github.repository }}
           Commit: ${{ github.sha }}
           Ref: ${{ github.ref }}
+          Runner: ${{ runner.os }} / ${{ runner.arch }}
           \`\`\`
           
-          ## Generated Artifacts
+          ## 🎯 Next Steps
           
-          Check the artifacts section below for detailed logs and results.
-          
-          ## View Logs
-          
-          - [Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          - [Release](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.inputs.release_tag }})
+          $(if [ "${EXIT_CODE}" -eq 0 ]; then
+            echo "✅ Execution completed successfully!"
+            echo ""
+            echo "1. Download artifacts to review detailed logs"
+            echo "2. Check verification output for SUCCESS/FAILURE status"
+            echo "3. Review Gemini execution logs for AI behavior"
+          else
+            echo "❌ Execution failed!"
+            echo ""
+            echo "1. Check the workflow logs for error details"
+            echo "2. Verify task structure is correct"
+            echo "3. Ensure Docker build completed successfully"
+            echo "4. Review autobuild script output"
+          fi)
           
           EOF
           
-          exit ${EXIT_CODE:-0}
+          echo "📊 Detailed summary generated"
+          
+          exit ${EXIT_CODE}
       
       - name: List generated files
         if: always()
