@@ -10,8 +10,7 @@ let currentWorkflowRun = null;
 let pollInterval = null;
 
 // DOM Elements
-const taskFile = document.getElementById('taskFile');
-const taskName = document.getElementById('taskName');
+const releaseTag = document.getElementById('releaseTag');
 const executionMode = document.getElementById('executionMode');
 const keepArtifacts = document.getElementById('keepArtifacts');
 const runButton = document.getElementById('runButton');
@@ -35,8 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add event listeners
   runButton.addEventListener('click', handleRun);
   
-  // Generate random task name
-  taskName.value = `task-${Date.now()}`;
+  // Generate random task name suggestion
+  releaseTag.placeholder = `task-mytask-${Date.now()}`;
 });
 
 // Token management
@@ -83,41 +82,26 @@ async function handleRun() {
     if (!CONFIG.token) return;
   }
   
-  const file = taskFile.files[0];
-  const name = taskName.value.trim();
+  const tag = releaseTag.value.trim();
   const mode = executionMode.value;
   
   // Validation
-  if (!file) {
-    showStatus('Please select a task ZIP file', 'error');
-    return;
-  }
-  
-  if (!name) {
-    showStatus('Please enter a task name', 'error');
-    return;
-  }
-  
-  if (!file.name.endsWith('.zip')) {
-    showStatus('Task file must be a ZIP archive', 'error');
+  if (!tag) {
+    showStatus('Please enter the release tag', 'error');
     return;
   }
   
   // Disable button
   runButton.disabled = true;
-  runButton.textContent = '⏳ Uploading...';
+  runButton.textContent = '⏳ Triggering workflow...';
   
   try {
-    // Step 1: Upload task as GitHub artifact (using workflow)
-    showStatus('Step 1/3: Uploading task...', 'info');
-    await uploadTaskAsWorkflow(file, name);
+    // Trigger autobuild workflow directly
+    showStatus('Triggering autobuild workflow...', 'info');
+    await triggerAutobuildWorkflow(tag, mode, keepArtifacts.checked);
     
-    // Step 2: Trigger autobuild workflow
-    showStatus('Step 2/3: Triggering autobuild workflow...', 'info');
-    await triggerAutobuildWorkflow(name, mode, keepArtifacts.checked);
-    
-    // Step 3: Monitor execution
-    showStatus('Step 3/3: Monitoring execution...', 'success');
+    // Monitor execution
+    showStatus('Workflow triggered! Monitoring execution...', 'success');
     showExecutionSection();
     startPolling();
     
@@ -129,73 +113,10 @@ async function handleRun() {
   }
 }
 
-// Upload task using GitHub API (create artifact via workflow)
-async function uploadTaskAsWorkflow(file, name) {
-  // Note: GitHub doesn't have a direct API to upload artifacts
-  // We need to use a workaround: trigger a workflow that creates an artifact placeholder,
-  // then the user uploads via the UI. For a fully automated solution, we'd need a backend.
-  
-  // For this demo, we'll use a simple approach:
-  // 1. Convert ZIP to base64
-  // 2. Create a file in the repo (or use release)
-  // 3. Autobuild workflow will download it
-  
-  // Alternative: Use GitHub Releases for file storage
-  return await uploadToGitHubRelease(file, name);
-}
-
-// Upload to GitHub Release (free storage)
-async function uploadToGitHubRelease(file, name) {
-  const tag = `task-${name}-${Date.now()}`;
-  
-  // Create release
-  const releaseResponse = await fetch(
-    `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/releases`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `token ${CONFIG.token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        tag_name: tag,
-        name: `Task: ${name}`,
-        body: `Task upload for autobuild execution`,
-        draft: false,
-        prerelease: true
-      })
-    }
-  );
-  
-  if (!releaseResponse.ok) {
-    throw new Error(`Failed to create release: ${releaseResponse.statusText}`);
-  }
-  
-  const release = await releaseResponse.json();
-  
-  // Upload asset
-  const uploadUrl = release.upload_url.replace('{?name,label}', `?name=${name}.zip`);
-  const uploadResponse = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: {
-      'Authorization': `token ${CONFIG.token}`,
-      'Content-Type': 'application/zip',
-    },
-    body: file
-  });
-  
-  if (!uploadResponse.ok) {
-    throw new Error(`Failed to upload asset: ${uploadResponse.statusText}`);
-  }
-  
-  const asset = await uploadResponse.json();
-  return asset.browser_download_url;
-}
-
-// Trigger autobuild workflow
-async function triggerAutobuildWorkflow(taskName, mode, keepArtifacts) {
+// Trigger autobuild workflow (simplified - no upload needed)
+async function triggerAutobuildWorkflow(releaseTag, mode, keepArtifacts) {
   const response = await fetch(
-    `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/actions/workflows/autobuild.yml/dispatches`,
+    `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/actions/workflows/autobuild-v2.yml/dispatches`,
     {
       method: 'POST',
       headers: {
@@ -206,7 +127,7 @@ async function triggerAutobuildWorkflow(taskName, mode, keepArtifacts) {
         ref: 'main',
         inputs: {
           mode: mode,
-          task_artifact: taskName,
+          release_tag: releaseTag,
           keep_artifacts: keepArtifacts.toString()
         }
       })
@@ -222,7 +143,7 @@ async function triggerAutobuildWorkflow(taskName, mode, keepArtifacts) {
   
   // Get the latest workflow run
   const runsResponse = await fetch(
-    `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/actions/workflows/autobuild.yml/runs?per_page=1`,
+    `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/actions/workflows/autobuild-v2.yml/runs?per_page=1`,
     {
       headers: {
         'Authorization': `token ${CONFIG.token}`,
