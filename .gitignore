@@ -54,3 +54,5 @@ output/
 # Build artifacts
 dist/
 build/
+
+.vercel

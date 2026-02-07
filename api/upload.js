@@ -1,5 +1,4 @@
 // Vercel Serverless Function - Upload task to GitHub
-import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
   // CORS headers
