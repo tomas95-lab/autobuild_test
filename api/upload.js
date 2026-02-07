@@ -52,9 +52,38 @@ export default async function handler(req, res) {
     
     const release = await releaseResponse.json();
     
-    // 2. Upload ZIP as asset
+    // 2. Upload ZIP as asset (fix Windows backslashes)
     const uploadUrl = release.upload_url.replace('{?name,label}', `?name=${encodeURIComponent(taskName)}.zip`);
-    const fileBuffer = Buffer.from(file, 'base64');
+    let fileBuffer = Buffer.from(file, 'base64');
+    
+    // Fix Windows paths in ZIP (convert backslashes to forward slashes)
+    // This is a workaround for ZIPs created on Windows
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = await JSZip.loadAsync(fileBuffer);
+      const newZip = new JSZip();
+      
+      // Copy all files with Unix-style paths
+      for (const [path, zipEntry] of Object.entries(zip.files)) {
+        if (!zipEntry.dir) {
+          const unixPath = path.replace(/\\/g, '/');
+          const content = await zipEntry.async('nodebuffer');
+          newZip.file(unixPath, content);
+        }
+      }
+      
+      // Generate new ZIP with correct paths
+      fileBuffer = await newZip.generateAsync({ 
+        type: 'nodebuffer',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+      
+      console.log('ZIP paths fixed for Unix compatibility');
+    } catch (error) {
+      console.warn('Could not fix ZIP paths:', error.message);
+      // Continue with original ZIP if fix fails
+    }
     
     console.log('Upload URL:', uploadUrl);
     console.log('File size:', fileBuffer.length);
